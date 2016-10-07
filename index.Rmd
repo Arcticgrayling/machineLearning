@@ -1,5 +1,6 @@
 ---
-title: "Machine Learning Course Project- Monitoring: How well did you do it?"
+title: "Monitoring: 'How well did you do it?' 
+ -Machine Learning Course Project- "
 author: "Peter Olsen"
 date: "October 5, 2016"
 output: html_document
@@ -10,60 +11,189 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Executive Summary
-This project will explore the data set from "Qualitative Activity Recognition of Weight Lifting Exercises" study that recorded inputs from sensors to determine how people are doing a dumbbell curl.  A Prediction model based on this data will be developed to predict the manner in which subjects did the excercise and to test the model for accuracy.
+This project will explore the data set from "Qualitative Activity Recognition of Weight Lifting Exercises" study that recorded inputs from sensors to determine how people are doing a dumbbell curl.  A Prediction model based on this data will be developed to predict the manner in which subjects did the exercise and to test the model for accuracy.  
 
-## Data Exploration
-This is a farily large data set with 160 variables.  Some of the variables are summary data that I did not find useful.  They did not work well for prediction and there were a lot of missing data points in them.  
-Another variable, num_window is perfectly correlated to classe because of how the testing was structured in time intervales, but I do not feel it is a variable that is in the spirit of the testing or one that would show up in future data so I have chosen to eliminate it.
-I found 48 variables to be related to the testing described and used them for building my model.  These variables are directly related to the sensors on the belt, arm, bumbell and forearm.
-
-
-```{r}
+```{r message = FALSE, warning = FALSE, echo = FALSE, results = "hide"}
 rm(list=ls())
 setwd("~/Documents/datasciencecoursera/MachineLearning/Project/")
 train <- read.csv("pml-training.csv")
 test <- read.csv("pml-testing.csv")
+library(caret)
+library(mlbench)
+library(parallel)
+library(doParallel)
 require(dplyr)
+# remove variables not valuable to the model
 train1 <- subset(train, , -c(1:36,50:59,69:83,87:100))
 train2 <- subset(train1, , -c(amplitude_yaw_dumbbell, 28:37, 50:64, 66:75))
-dim(train2)
+varNames <- names(train2)  
 ```
+## Data Exploration and Variable Selection
+This is a fairly large data set with 160 variables.  Some of the variables are summary data that I did not find useful.  They did not work well for prediction and there were a lot of missing data points in them.    
+Another variable, num_window is perfectly correlated to classe because of how the testing was structured in time intervals, but I do not feel it is a variable that is in the spirit of the testing or one that would show up in future data so I have chosen to eliminate it.  
+I found 48 variables to be related to the testing described and used them for building my model.  These variables are directly related to the sensors on the belt, arm, dumbbell and forearm.  
+In the classe variable there are 5 classes represented, one is when the exercise is done correctly the other four are various ways the exercise can be done incorrectly.  
+The variables I used in my model:  
+`r varNames`
 
-## The model
-### 1. Model selection.
+## The MODEL
+#### 1. Model selection.
 I looked at 3 training methods, Random Forest, Linear Digression Models and Boosting (gmb).  
 The model builds are shown in the appendix.
-I found the Random forest model to be the most accurate.
+I found the Random Forest model to be the most accurate and while it took longer to compute, it predicted the train data correctly.
 
-2. Cross validation
+```{r message = FALSE, warning = FALSE, echo = FALSE}
+set.seed(10-2016)
+cluster <- makeCluster(detectCores() -1)
+registerDoParallel(cluster)
 
-3. expected out of sample error
+fitControl <- trainControl(method = "cv", number =5,
+                           allowParallel = TRUE)
+
+## split into training and testing sets
+inTrain = createDataPartition(train2$classe, p = 3/4)[[1]]
+training = train2[ inTrain,]
+testing = train2[-inTrain,]
+
+## run random forest 
+ system.time(RF_AL_mod <- train(classe ~ ., method="rf",data=training, trControl = fitControl))
+stopCluster(cluster)
+print(RF_AL_mod)
+RF_AL_pred <- predict(RF_AL_mod,testing)
+RF_AL_testing <- testing
+RF_AL_testing$predRight <- predict(RF_AL_mod,testing, "raw")
+RFcm <- confusionMatrix(RF_AL_testing$predRight, RF_AL_testing$classe)
+print(RFcm)
+RFaccuracy <- RFcm$overall['Accuracy']
+PredictedResults <- as.character(predict(RF_AL_mod,test))
+```
+
+####2. Cross validation: using CV
+I found using CV at a value of 5 in trainControl cut the processing time in about 1/2 when using Random Forest and Boosting and it did not seem to effect the accuracy.  The trainControl function was also used to allow Parallel processing to improve computing performance.
+
+####3. Expected out of sample error
+ For the LDA model I found Accuracy of around .67   
+ For the Boost/GMB model I found Accuracy to be around .93  
+ And For the Random Forest Model I found the calculated Accuracy to be: `r RFaccuracy`, a bit below .99, but the model did predict the train data correctly.
  
-
+## Results
+The Model, using data directly related to the sensors and using Random Forest with CV set at 5 work well.  With parellel processing and cross validation in trainControl set to "CV" with a value of 5, the computing time was respectable on my system at an elapsed time of 211. 
+  
+The predicted results based on the train data were:  
+`r PredictedResults`  
+Which proved to be correct.
 
 ## Appendix
-CODE:
+###CODE:  
+
+#### Setup code  
+```{r eval = FALSE}
+train <- read.csv("pml-training.csv")
+test <- read.csv("pml-testing.csv")
+library(caret)
+library(mlbench)
+library(parallel)
+library(doParallel)
+require(dplyr)
+# remove variables not valuable to the model
+train1 <- subset(train, , -c(1:36,50:59,69:83,87:100))
+train2 <- subset(train1, , -c(amplitude_yaw_dumbbell, 28:37, 50:64, 66:75))
+varNames <- names(train2) 
+```
+#### LDA
+```{r eval = FALSE}
+## Configure Parallel Processing
+library(caret)
+library(mlbench)
+library(parallel)
+library(doParallel)
+set.seed(10-2016)
+cluster <- makeCluster(detectCores() -1)
+registerDoParallel(cluster)
+
+fitControl <- trainControl(method = "cv", number =5,
+                           allowParallel = TRUE)
+
+## split into train/test
+inTrain = createDataPartition(train2$classe, p = 3/4)[[1]]
+training = train2[ inTrain,]
+testing = train2[-inTrain,]
+
+## run random forest
+system.time(LDA_AL_mod <- train(classe ~ ., method="lda",data=training, trControl = fitControl))
+#LDA_AL_mod <- train(diagnosis ~ ., method="lda",data=training)
+stopCluster(cluster)
+## system time on above statement
+##user  system elapsed 
+##45.885   1.274 566.179 
+
+system.time(LDA_AL_pred <- predict(LDA_AL_mod,testing))
+
+LDA_AL_testing <- testing
+LDA_AL_testing$predRight <- predict(LDA_AL_mod,testing, "raw")
+confusionMatrix(LDA_AL_testing$predRight, LDA_AL_testing$classe)  
+```
+####Boosting  
+```{r eval = FALSE}
+
+### BOOSTING
+set.seed(10-2016)
+cluster <- makeCluster(detectCores() -1)
+registerDoParallel(cluster)
+
+fitControl <- trainControl(method = "cv", number =5,
+                           allowParallel = TRUE)
+
+## split into train/test
+inTrain = createDataPartition(train2$classe, p = 3/4)[[1]]
+training = train2[ inTrain,]
+testing = train2[-inTrain,]
+
+## run random forest
+system.time(LDA_AL_mod <- train(classe ~ ., method="gbm",data=training, trControl = fitControl, verbose=FALSE))
+
+stopCluster(cluster)
+
+system.time(LDA_AL_pred <- predict(LDA_AL_mod,testing))
+
+LDA_AL_testing <- testing
+LDA_AL_testing$predRight <- predict(LDA_AL_mod,testing, "raw")
+confusionMatrix(LDA_AL_testing$predRight, LDA_AL_testing$classe)  
+```
+#### Random Forest
+```{r eval = FALSE}
+
+### RANDOM FOREST
+set.seed(10-2016)
+cluster <- makeCluster(detectCores() -1)
+registerDoParallel(cluster)
+
+fitControl <- trainControl(method = "cv", number =5,
+                           allowParallel = TRUE)
+
+## split into training and testing sets
+inTrain = createDataPartition(train2$classe, p = 3/4)[[1]]
+training = train2[ inTrain,]
+testing = train2[-inTrain,]
+
+## run random forest 
+system.time(RF_AL_mod <- train(classe ~ ., method="rf",data=training, trControl = fitControl))
+stopCluster(cluster)
+print(RF_AL_mod)
+system.time(RF_AL_pred <- predict(RF_AL_mod,testing))
+
+RF_AL_testing <- testing
+RF_AL_testing$predRight <- predict(RF_AL_mod,testing, "raw")
+RFcm <- confusionMatrix(RF_AL_testing$predRight, RF_AL_testing$classe)
+RFaccuracy <- RFcm$overall['Accuracy']
+PredictedResults <- as.character(predict(RF_AL_mod,test))
+
+```
 
 ## Refferences
 1. Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013. 
 http://groupware.les.inf.puc-rio.br/har
 
+2. Greski, L. "Improving Performance of Random Forest in caret::train()" https://github.com/lgreski/datasciencectacontent/blob/master/markdown/pml-randomForestPerformance.md
 
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
