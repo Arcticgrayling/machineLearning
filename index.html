@@ -142,7 +142,7 @@ gyros_belt_x, gyros_belt_y, gyros_belt_z, accel_belt_x, accel_belt_y, accel_belt
 <p>I looked at 3 training methods, Random Forest, Linear Digression Models and Boosting (gmb).<br />
 The model builds are shown in the appendix. I found the Random Forest model to be the most accurate and while it took longer to compute, it predicted the train data correctly.</p>
 <pre><code>##    user  system elapsed 
-##  34.416   0.363 205.203</code></pre>
+##  36.630   0.697 245.906</code></pre>
 <pre><code>## Random Forest 
 ## 
 ## 14718 samples
@@ -157,9 +157,9 @@ The model builds are shown in the appendix. I found the Random Forest model to b
 ## Resampling results across tuning parameters:
 ## 
 ##   mtry  Accuracy   Kappa      Accuracy SD  Kappa SD   
-##    2    0.9862075  0.9825497  0.001139839  0.001442318
-##   25    0.9853923  0.9815176  0.002768514  0.003505619
-##   48    0.9752686  0.9687068  0.003215605  0.004073575
+##    2    0.9853243  0.9814313  0.001208136  0.001528009
+##   25    0.9852564  0.9813455  0.002181156  0.002760322
+##   48    0.9749289  0.9682784  0.003233408  0.004092488
 ## 
 ## Accuracy was used to select the optimal model using  the largest value.
 ## The final value used for the model was mtry = 2.</code></pre>
@@ -203,12 +203,12 @@ The model builds are shown in the appendix. I found the Random Forest model to b
 <h4>3. Expected out of sample error</h4>
 <p>For the LDA model I found Accuracy of around .67<br />
  For the Boost/GMB model I found Accuracy to be around .93<br />
- And For the Random Forest Model I found the calculated Accuracy to be: 0.9875612, a bit below .99, but the model did predict the train data correctly.</p>
+ And For the Random Forest Model I found the calculated Accuracy to be: 0.9875612, right around .99. The model did predict the train data correctly.</p>
 </div>
 </div>
 <div id="results" class="section level2">
 <h2>Results</h2>
-<p>The Model, using data directly related to the sensors and using Random Forest with CV set at 5 work well. With parellel processing and cross validation in trainControl set to “CV” with a value of 5, the computing time was respectable on my system at an elapsed time of 211.</p>
+<p>The Model, using data directly related to the sensors and using Random Forest with CV set at 5 worked well. With parellel processing and cross validation in trainControl set to “CV” with a value of 5, the computing time was respectable on my system at an elapsed time of around 200.</p>
 <p>The predicted results based on the train data were:<br />
 B, A, B, A, A, E, D, B, A, A, B, C, B, A, E, E, A, B, B, B<br />
 Which proved to be correct.</p>
@@ -248,7 +248,7 @@ fitControl &lt;- trainControl(method = &quot;cv&quot;, number =5,
 ## split into train/test
 inTrain = createDataPartition(train2$classe, p = 3/4)[[1]]
 training = train2[ inTrain,]
-testing = train2[-inTrain,]
+validating = train2[-inTrain,]
 
 ## run random forest
 system.time(LDA_AL_mod &lt;- train(classe ~ ., method=&quot;lda&quot;,data=training, trControl = fitControl))
@@ -258,11 +258,11 @@ stopCluster(cluster)
 ##user  system elapsed 
 ##45.885   1.274 566.179 
 
-system.time(LDA_AL_pred &lt;- predict(LDA_AL_mod,testing))
+system.time(LDA_AL_pred &lt;- predict(LDA_AL_mod,validating))
 
-LDA_AL_testing &lt;- testing
-LDA_AL_testing$predRight &lt;- predict(LDA_AL_mod,testing, &quot;raw&quot;)
-confusionMatrix(LDA_AL_testing$predRight, LDA_AL_testing$classe)  </code></pre>
+LDA_AL_validating &lt;- validating
+LDA_AL_validating$predRight &lt;- predict(LDA_AL_mod,validating, &quot;raw&quot;)
+confusionMatrix(LDA_AL_validating$predRight, LDA_AL_validating$classe)  </code></pre>
 </div>
 <div id="boosting" class="section level4">
 <h4>Boosting</h4>
@@ -277,18 +277,18 @@ fitControl &lt;- trainControl(method = &quot;cv&quot;, number =5,
 ## split into train/test
 inTrain = createDataPartition(train2$classe, p = 3/4)[[1]]
 training = train2[ inTrain,]
-testing = train2[-inTrain,]
+validating = train2[-inTrain,]
 
 ## run random forest
 system.time(LDA_AL_mod &lt;- train(classe ~ ., method=&quot;gbm&quot;,data=training, trControl = fitControl, verbose=FALSE))
 
 stopCluster(cluster)
 
-system.time(LDA_AL_pred &lt;- predict(LDA_AL_mod,testing))
+system.time(LDA_AL_pred &lt;- predict(LDA_AL_mod,validating))
 
-LDA_AL_testing &lt;- testing
-LDA_AL_testing$predRight &lt;- predict(LDA_AL_mod,testing, &quot;raw&quot;)
-confusionMatrix(LDA_AL_testing$predRight, LDA_AL_testing$classe)  </code></pre>
+LDA_AL_validating &lt;- validating
+LDA_AL_validating$predRight &lt;- predict(LDA_AL_mod,validating, &quot;raw&quot;)
+confusionMatrix(LDA_AL_validating$predRight, LDA_AL_validating$classe)  </code></pre>
 </div>
 <div id="random-forest" class="section level4">
 <h4>Random Forest</h4>
@@ -300,20 +300,20 @@ registerDoParallel(cluster)
 fitControl &lt;- trainControl(method = &quot;cv&quot;, number =5,
                            allowParallel = TRUE)
 
-## split into training and testing sets
+## split into training and validating sets
 inTrain = createDataPartition(train2$classe, p = 3/4)[[1]]
 training = train2[ inTrain,]
-testing = train2[-inTrain,]
+validating = train2[-inTrain,]
 
 ## run random forest 
 system.time(RF_AL_mod &lt;- train(classe ~ ., method=&quot;rf&quot;,data=training, trControl = fitControl))
 stopCluster(cluster)
 print(RF_AL_mod)
-system.time(RF_AL_pred &lt;- predict(RF_AL_mod,testing))
+system.time(RF_AL_pred &lt;- predict(RF_AL_mod,validating))
 
-RF_AL_testing &lt;- testing
-RF_AL_testing$predRight &lt;- predict(RF_AL_mod,testing, &quot;raw&quot;)
-RFcm &lt;- confusionMatrix(RF_AL_testing$predRight, RF_AL_testing$classe)
+RF_AL_validating &lt;- validating
+RF_AL_validating$predRight &lt;- predict(RF_AL_mod,validating, &quot;raw&quot;)
+RFcm &lt;- confusionMatrix(RF_AL_validating$predRight, RF_AL_validating$classe)
 RFaccuracy &lt;- RFcm$overall['Accuracy']
 PredictedResults &lt;- as.character(predict(RF_AL_mod,test))</code></pre>
 </div>

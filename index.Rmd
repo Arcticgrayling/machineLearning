@@ -50,19 +50,19 @@ registerDoParallel(cluster)
 fitControl <- trainControl(method = "cv", number =5,
                            allowParallel = TRUE)
 
-## split into training and testing sets
+## split into training and validating sets
 inTrain = createDataPartition(train2$classe, p = 3/4)[[1]]
 training = train2[ inTrain,]
-testing = train2[-inTrain,]
+validating = train2[-inTrain,]
 
 ## run random forest 
  system.time(RF_AL_mod <- train(classe ~ ., method="rf",data=training, trControl = fitControl))
 stopCluster(cluster)
 print(RF_AL_mod)
-RF_AL_pred <- predict(RF_AL_mod,testing)
-RF_AL_testing <- testing
-RF_AL_testing$predRight <- predict(RF_AL_mod,testing, "raw")
-RFcm <- confusionMatrix(RF_AL_testing$predRight, RF_AL_testing$classe)
+RF_AL_pred <- predict(RF_AL_mod,validating)
+RF_AL_validating <- validating
+RF_AL_validating$predRight <- predict(RF_AL_mod,validating, "raw")
+RFcm <- confusionMatrix(RF_AL_validating$predRight, RF_AL_validating$classe)
 print(RFcm)
 RFaccuracy <- RFcm$overall['Accuracy']
 PredictedResults <- as.character(predict(RF_AL_mod,test))
@@ -74,10 +74,10 @@ I found using CV at a value of 5 in trainControl cut the processing time in abou
 ####3. Expected out of sample error
  For the LDA model I found Accuracy of around .67   
  For the Boost/GMB model I found Accuracy to be around .93  
- And For the Random Forest Model I found the calculated Accuracy to be: `r RFaccuracy`, a bit below .99, but the model did predict the train data correctly.
+ And For the Random Forest Model I found the calculated Accuracy to be: `r RFaccuracy`, right around .99.  The model did predict the train data correctly.
  
 ## Results
-The Model, using data directly related to the sensors and using Random Forest with CV set at 5 work well.  With parellel processing and cross validation in trainControl set to "CV" with a value of 5, the computing time was respectable on my system at an elapsed time of 211. 
+The Model, using data directly related to the sensors and using Random Forest with CV set at 5 worked well.  With parellel processing and cross validation in trainControl set to "CV" with a value of 5, the computing time was respectable on my system at an elapsed time of around 200. 
   
 The predicted results based on the train data were:  
 `r PredictedResults`  
@@ -117,7 +117,7 @@ fitControl <- trainControl(method = "cv", number =5,
 ## split into train/test
 inTrain = createDataPartition(train2$classe, p = 3/4)[[1]]
 training = train2[ inTrain,]
-testing = train2[-inTrain,]
+validating = train2[-inTrain,]
 
 ## run random forest
 system.time(LDA_AL_mod <- train(classe ~ ., method="lda",data=training, trControl = fitControl))
@@ -127,11 +127,11 @@ stopCluster(cluster)
 ##user  system elapsed 
 ##45.885   1.274 566.179 
 
-system.time(LDA_AL_pred <- predict(LDA_AL_mod,testing))
+system.time(LDA_AL_pred <- predict(LDA_AL_mod,validating))
 
-LDA_AL_testing <- testing
-LDA_AL_testing$predRight <- predict(LDA_AL_mod,testing, "raw")
-confusionMatrix(LDA_AL_testing$predRight, LDA_AL_testing$classe)  
+LDA_AL_validating <- validating
+LDA_AL_validating$predRight <- predict(LDA_AL_mod,validating, "raw")
+confusionMatrix(LDA_AL_validating$predRight, LDA_AL_validating$classe)  
 ```
 ####Boosting  
 ```{r eval = FALSE}
@@ -147,18 +147,18 @@ fitControl <- trainControl(method = "cv", number =5,
 ## split into train/test
 inTrain = createDataPartition(train2$classe, p = 3/4)[[1]]
 training = train2[ inTrain,]
-testing = train2[-inTrain,]
+validating = train2[-inTrain,]
 
 ## run random forest
 system.time(LDA_AL_mod <- train(classe ~ ., method="gbm",data=training, trControl = fitControl, verbose=FALSE))
 
 stopCluster(cluster)
 
-system.time(LDA_AL_pred <- predict(LDA_AL_mod,testing))
+system.time(LDA_AL_pred <- predict(LDA_AL_mod,validating))
 
-LDA_AL_testing <- testing
-LDA_AL_testing$predRight <- predict(LDA_AL_mod,testing, "raw")
-confusionMatrix(LDA_AL_testing$predRight, LDA_AL_testing$classe)  
+LDA_AL_validating <- validating
+LDA_AL_validating$predRight <- predict(LDA_AL_mod,validating, "raw")
+confusionMatrix(LDA_AL_validating$predRight, LDA_AL_validating$classe)  
 ```
 #### Random Forest
 ```{r eval = FALSE}
@@ -171,20 +171,20 @@ registerDoParallel(cluster)
 fitControl <- trainControl(method = "cv", number =5,
                            allowParallel = TRUE)
 
-## split into training and testing sets
+## split into training and validating sets
 inTrain = createDataPartition(train2$classe, p = 3/4)[[1]]
 training = train2[ inTrain,]
-testing = train2[-inTrain,]
+validating = train2[-inTrain,]
 
 ## run random forest 
 system.time(RF_AL_mod <- train(classe ~ ., method="rf",data=training, trControl = fitControl))
 stopCluster(cluster)
 print(RF_AL_mod)
-system.time(RF_AL_pred <- predict(RF_AL_mod,testing))
+system.time(RF_AL_pred <- predict(RF_AL_mod,validating))
 
-RF_AL_testing <- testing
-RF_AL_testing$predRight <- predict(RF_AL_mod,testing, "raw")
-RFcm <- confusionMatrix(RF_AL_testing$predRight, RF_AL_testing$classe)
+RF_AL_validating <- validating
+RF_AL_validating$predRight <- predict(RF_AL_mod,validating, "raw")
+RFcm <- confusionMatrix(RF_AL_validating$predRight, RF_AL_validating$classe)
 RFaccuracy <- RFcm$overall['Accuracy']
 PredictedResults <- as.character(predict(RF_AL_mod,test))
 
